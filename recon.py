@@ -4,12 +4,12 @@ import sys
 
 def check_host(target):
     result = subprocess.run(
-        ["ping", "-c", "1", "-W", "2", target],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL
+        ["nmap", "-sn", target],
+        capture_output=True,
+        text=True
     )
 
-    return result.returncode == 0
+    return "Host is up" in result.stdout
 
 
 def main():
@@ -20,11 +20,11 @@ def main():
     target = sys.argv[1]
 
     print("=" * 40)
-    print("   NETWORK RECON TOOL v0.1")
+    print("   NETWORK RECON TOOL v0.2")
     print("=" * 40)
 
     print(f"\nTarget: {target}")
-    print("[+] Checking host availability...")
+    print("[+] Performing Nmap host discovery...")
 
     if check_host(target):
         print("[+] Host is reachable")
