@@ -2,14 +2,32 @@ import subprocess
 import sys
 import argparse
 import json
+import shutil
+
+
+def check_nmap():
+    if shutil.which("nmap") is None:
+        print("[-] Error: Nmap is not installed or not in PATH.")
+        sys.exit(1)
 
 
 def check_host(target):
-    result = subprocess.run(
-        ["nmap", "-sn", target],
-        capture_output=True,
-        text=True
-    )
+    try:
+        result = subprocess.run(
+            ["nmap", "-sn", target],
+            capture_output=True,
+            text=True,
+            check=False
+        )
+    except Exception as error:
+        print(f"[-] Host discovery failed: {error}")
+        sys.exit(1)
+
+    if result.returncode != 0:
+        print("[-] Nmap host discovery failed.")
+        if result.stderr.strip():
+            print(f"    {result.stderr.strip()}")
+        sys.exit(1)
 
     return "Host is up" in result.stdout
 
@@ -20,11 +38,22 @@ def scan_ports(target, ports, scan_type):
     else:
         nmap_args = ["nmap", "-p", ports, target]
 
-    result = subprocess.run(
-        nmap_args,
-        capture_output=True,
-        text=True
-    )
+    try:
+        result = subprocess.run(
+            nmap_args,
+            capture_output=True,
+            text=True,
+            check=False
+        )
+    except Exception as error:
+        print(f"[-] Port scan failed: {error}")
+        sys.exit(1)
+
+    if result.returncode != 0:
+        print("[-] Nmap port scan failed.")
+        if result.stderr.strip():
+            print(f"    {result.stderr.strip()}")
+        sys.exit(1)
 
     return result.stdout
 
@@ -55,8 +84,13 @@ def save_json(output_file, target, scan_type, ports):
         "ports": ports
     }
 
-    with open(output_file, "w") as file:
-        json.dump(report, file, indent=4)
+    try:
+        with open(output_file, "w") as file:
+            json.dump(report, file, indent=4)
+
+    except OSError as error:
+        print(f"[-] Could not save JSON report: {error}")
+        sys.exit(1)
 
 
 def main():
@@ -89,13 +123,25 @@ def main():
 
     args = parser.parse_args()
 
-    target = args.target
-    ports_to_scan = args.ports
+    check_nmap()
+
+    target = args.target.strip()
+
+    if not target:
+        print("[-] Error: Target cannot be empty.")
+        sys.exit(1)
+
+    ports_to_scan = args.ports.strip()
+
+    if not ports_to_scan:
+        print("[-] Error: Port specification cannot be empty.")
+        sys.exit(1)
+
     scan_type = args.scan
     output_file = args.output
 
     print("=" * 50)
-    print("       NETWORK RECON TOOL v0.7")
+    print("       NETWORK RECON TOOL v0.8")
     print("=" * 50)
 
     print(f"\nTarget: {target}")
@@ -103,7 +149,7 @@ def main():
     print("[+] Performing Nmap host discovery...")
 
     if not check_host(target):
-        print("[-] Host appears unreachable")
+        print("[-] Host appears unreachable.")
         sys.exit(1)
 
     print("[+] Host is reachable")
@@ -111,7 +157,11 @@ def main():
     print(f"\n[+] Scan type: {scan_type}")
     print(f"[+] Scanning ports: {ports_to_scan}")
 
-    output = scan_ports(target, ports_to_scan, scan_type)
+    output = scan_ports(
+        target,
+        ports_to_scan,
+        scan_type
+    )
 
     ports = parse_ports(output)
 
@@ -126,6 +176,9 @@ def main():
     )
 
     print("-" * 80)
+
+    if not ports:
+        print("No TCP port results found.")
 
     for port in ports:
         print(
