@@ -13,9 +13,14 @@ def check_host(target):
     return "Host is up" in result.stdout
 
 
-def scan_ports(target, ports):
+def scan_ports(target, ports, scan_type):
+    if scan_type == "service":
+        nmap_args = ["nmap", "-sV", "-p", ports, target]
+    else:
+        nmap_args = ["nmap", "-p", ports, target]
+
     result = subprocess.run(
-        ["nmap", "-sV", "-p", ports, target],
+        nmap_args,
         capture_output=True,
         text=True
     )
@@ -58,13 +63,21 @@ def main():
         help="Ports to scan (example: 22,80,443 or 1-100)"
     )
 
+    parser.add_argument(
+        "--scan",
+        choices=["basic", "service"],
+        default="service",
+        help="Scan type: basic port scan or service/version detection"
+    )
+
     args = parser.parse_args()
 
     target = args.target
     ports_to_scan = args.ports
+    scan_type = args.scan
 
     print("=" * 50)
-    print("       NETWORK RECON TOOL v0.5")
+    print("       NETWORK RECON TOOL v0.6")
     print("=" * 50)
 
     print(f"\nTarget: {target}")
@@ -77,9 +90,10 @@ def main():
 
     print("[+] Host is reachable")
 
-    print(f"\n[+] Scanning ports: {ports_to_scan}")
+    print(f"\n[+] Scan type: {scan_type}")
+    print(f"[+] Scanning ports: {ports_to_scan}")
 
-    output = scan_ports(target, ports_to_scan)
+    output = scan_ports(target, ports_to_scan, scan_type)
 
     ports = parse_ports(output)
 
@@ -106,4 +120,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
