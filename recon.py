@@ -1,6 +1,7 @@
 import subprocess
 import sys
 import argparse
+import json
 
 
 def check_host(target):
@@ -47,6 +48,17 @@ def parse_ports(nmap_output):
     return ports
 
 
+def save_json(output_file, target, scan_type, ports):
+    report = {
+        "target": target,
+        "scan_type": scan_type,
+        "ports": ports
+    }
+
+    with open(output_file, "w") as file:
+        json.dump(report, file, indent=4)
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Network Recon & Service Enumeration Tool"
@@ -70,14 +82,20 @@ def main():
         help="Scan type: basic port scan or service/version detection"
     )
 
+    parser.add_argument(
+        "--output",
+        help="Save scan results to a JSON file"
+    )
+
     args = parser.parse_args()
 
     target = args.target
     ports_to_scan = args.ports
     scan_type = args.scan
+    output_file = args.output
 
     print("=" * 50)
-    print("       NETWORK RECON TOOL v0.6")
+    print("       NETWORK RECON TOOL v0.7")
     print("=" * 50)
 
     print(f"\nTarget: {target}")
@@ -116,6 +134,16 @@ def main():
             f"{port['service']:<12}"
             f"{port['version']}"
         )
+
+    if output_file:
+        save_json(
+            output_file,
+            target,
+            scan_type,
+            ports
+        )
+
+        print(f"\n[+] Results saved to: {output_file}")
 
 
 if __name__ == "__main__":
