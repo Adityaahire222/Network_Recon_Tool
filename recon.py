@@ -1,5 +1,6 @@
 import subprocess
 import sys
+import argparse
 
 
 def check_host(target):
@@ -42,14 +43,28 @@ def parse_ports(nmap_output):
 
 
 def main():
-    if len(sys.argv) != 2:
-        print("Usage: python3 recon.py <target>")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description="Network Recon & Service Enumeration Tool"
+    )
 
-    target = sys.argv[1]
+    parser.add_argument(
+        "target",
+        help="Target IP address or hostname"
+    )
+
+    parser.add_argument(
+        "--ports",
+        default="22,80,443,8000",
+        help="Ports to scan (example: 22,80,443 or 1-100)"
+    )
+
+    args = parser.parse_args()
+
+    target = args.target
+    ports_to_scan = args.ports
 
     print("=" * 50)
-    print("       NETWORK RECON TOOL v0.4")
+    print("       NETWORK RECON TOOL v0.5")
     print("=" * 50)
 
     print(f"\nTarget: {target}")
@@ -62,9 +77,9 @@ def main():
 
     print("[+] Host is reachable")
 
-    print("\n[+] Scanning ports: 22,80,443,8000")
+    print(f"\n[+] Scanning ports: {ports_to_scan}")
 
-    output = scan_ports(target, "22,80,443,8000")
+    output = scan_ports(target, ports_to_scan)
 
     ports = parse_ports(output)
 
@@ -91,3 +106,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
