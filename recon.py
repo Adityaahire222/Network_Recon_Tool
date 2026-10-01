@@ -3,15 +3,28 @@ import sys
 import argparse
 import json
 import shutil
+import logging
+
+
+def setup_logging(log_file):
+    if log_file:
+        logging.basicConfig(
+            filename=log_file,
+            level=logging.INFO,
+            format="%(asctime)s - %(levelname)s - %(message)s"
+        )
 
 
 def check_nmap():
     if shutil.which("nmap") is None:
+        logging.error("Nmap is not installed or not in PATH.")
         print("[-] Error: Nmap is not installed or not in PATH.")
         sys.exit(1)
 
 
 def check_host(target):
+    logging.info(f"Starting host discovery for target: {target}")
+
     try:
         result = subprocess.run(
             ["nmap", "-sn", target],
@@ -20,16 +33,27 @@ def check_host(target):
             check=False
         )
     except Exception as error:
+        logging.error(f"Host discovery failed: {error}")
         print(f"[-] Host discovery failed: {error}")
         sys.exit(1)
 
     if result.returncode != 0:
+        logging.error("Nmap host discovery failed.")
+
         print("[-] Nmap host discovery failed.")
+
         if result.stderr.strip():
+            logging.error(result.stderr.strip())
             print(f"    {result.stderr.strip()}")
+
         sys.exit(1)
 
-    return "Host is up" in result.stdout
+    if "Host is up" in result.stdout:
+        logging.info("Host discovery successful.")
+        return True
+
+    logging.warning("Host appears unreachable.")
+    return False
 
 
 def scan_ports(target, ports, scan_type):
@@ -37,6 +61,10 @@ def scan_ports(target, ports, scan_type):
         nmap_args = ["nmap", "-sV", "-p", ports, target]
     else:
         nmap_args = ["nmap", "-p", ports, target]
+
+    logging.info(
+        f"Starting {scan_type} scan on {target}, ports: {ports}"
+    )
 
     try:
         result = subprocess.run(
@@ -46,14 +74,22 @@ def scan_ports(target, ports, scan_type):
             check=False
         )
     except Exception as error:
+        logging.error(f"Port scan failed: {error}")
         print(f"[-] Port scan failed: {error}")
         sys.exit(1)
 
     if result.returncode != 0:
+        logging.error("Nmap port scan failed.")
+
         print("[-] Nmap port scan failed.")
+
         if result.stderr.strip():
+            logging.error(result.stderr.strip())
             print(f"    {result.stderr.strip()}")
+
         sys.exit(1)
+
+    logging.info("Port scan completed successfully.")
 
     return result.stdout
 
@@ -74,6 +110,8 @@ def parse_ports(nmap_output):
 
             ports.append(port_info)
 
+    logging.info(f"Parsed {len(ports)} TCP port result(s).")
+
     return ports
 
 
@@ -89,8 +127,11 @@ def save_json(output_file, target, scan_type, ports):
             json.dump(report, file, indent=4)
 
     except OSError as error:
+        logging.error(f"Could not save JSON report: {error}")
         print(f"[-] Could not save JSON report: {error}")
         sys.exit(1)
+
+    logging.info(f"JSON report saved to: {output_file}")
 
 
 def main():
@@ -121,19 +162,30 @@ def main():
         help="Save scan results to a JSON file"
     )
 
+    parser.add_argument(
+        "--log",
+        help="Save execution logs to a file"
+    )
+
     args = parser.parse_args()
+
+    setup_logging(args.log)
+
+    logging.info("Network Recon Tool started.")
 
     check_nmap()
 
     target = args.target.strip()
 
     if not target:
+        logging.error("Target cannot be empty.")
         print("[-] Error: Target cannot be empty.")
         sys.exit(1)
 
     ports_to_scan = args.ports.strip()
 
     if not ports_to_scan:
+        logging.error("Port specification cannot be empty.")
         print("[-] Error: Port specification cannot be empty.")
         sys.exit(1)
 
@@ -141,7 +193,7 @@ def main():
     output_file = args.output
 
     print("=" * 50)
-    print("       NETWORK RECON TOOL v0.8")
+    print("       NETWORK RECON TOOL v0.9")
     print("=" * 50)
 
     print(f"\nTarget: {target}")
@@ -149,6 +201,7 @@ def main():
     print("[+] Performing Nmap host discovery...")
 
     if not check_host(target):
+        logging.error("Host appears unreachable.")
         print("[-] Host appears unreachable.")
         sys.exit(1)
 
@@ -178,6 +231,7 @@ def main():
     print("-" * 80)
 
     if not ports:
+        logging.warning("No TCP port results found.")
         print("No TCP port results found.")
 
     for port in ports:
@@ -197,6 +251,10 @@ def main():
         )
 
         print(f"\n[+] Results saved to: {output_file}")
+
+    if args.log:
+        logging.info("Network reconnaissance completed.")
+        print(f"[+] Log saved to: {args.log}")
 
 
 if __name__ == "__main__":
