@@ -14,7 +14,7 @@ def check_host(target):
 
 def scan_ports(target, ports):
     result = subprocess.run(
-        ["nmap", "-p", ports, target],
+        ["nmap", "-sV", "-p", ports, target],
         capture_output=True,
         text=True
     )
@@ -29,11 +29,14 @@ def parse_ports(nmap_output):
         parts = line.split()
 
         if len(parts) >= 3 and "/tcp" in parts[0]:
-            ports.append({
+            port_info = {
                 "port": parts[0],
                 "state": parts[1],
-                "service": parts[2]
-            })
+                "service": parts[2],
+                "version": " ".join(parts[3:]) if len(parts) > 3 else "-"
+            }
+
+            ports.append(port_info)
 
     return ports
 
@@ -45,9 +48,9 @@ def main():
 
     target = sys.argv[1]
 
-    print("=" * 40)
-    print("   NETWORK RECON TOOL v0.3")
-    print("=" * 40)
+    print("=" * 50)
+    print("       NETWORK RECON TOOL v0.4")
+    print("=" * 50)
 
     print(f"\nTarget: {target}")
 
@@ -59,20 +62,30 @@ def main():
 
     print("[+] Host is reachable")
 
-    print("\n[+] Scanning ports: 22,80,443")
+    print("\n[+] Scanning ports: 22,80,443,8000")
 
-    output = scan_ports(target, "22,80,443")
+    output = scan_ports(target, "22,80,443,8000")
 
     ports = parse_ports(output)
 
     print("\nPORT SCAN RESULTS")
-    print("-" * 40)
+    print("-" * 80)
+
+    print(
+        f"{'PORT':<10}"
+        f"{'STATE':<12}"
+        f"{'SERVICE':<12}"
+        f"VERSION"
+    )
+
+    print("-" * 80)
 
     for port in ports:
         print(
             f"{port['port']:<10}"
             f"{port['state']:<12}"
-            f"{port['service']}"
+            f"{port['service']:<12}"
+            f"{port['version']}"
         )
 
 
